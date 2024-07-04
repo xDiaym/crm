@@ -9,7 +9,7 @@ int main() {
   const char m2[] = "secret";
   char buff1[1024] = {0}, buff2[1024] = {0};
 
-  const char key1[] = "h";
+  const char key1[] = "itmo&yandex";
 
   struct MagicCryptKey k1, k2;
   struct MagicCryptCtx ctx;
