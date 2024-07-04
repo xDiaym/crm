@@ -1,6 +1,7 @@
 #ifndef CRM_H
 #define CRM_H
 
+#include <stdio.h>
 #include <gmp.h>
 #include <stddef.h>
 
