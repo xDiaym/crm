@@ -172,7 +172,7 @@ int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
   size_t proceed;
   mpz_export(output, &proceed, 1, 1, 0, 0, c);
 
-  mpz_clears(m1, m2, c, tmp1, tmp2, P, 0);
+  mpz_clears(m1, m2, c, p1_inv, p2_inv, tmp1, tmp2, P, 0);
   return proceed;
 }
 
