@@ -7,19 +7,21 @@
 int main() {
   const char m1[] = "hello, world!";
   const char m2[] = "secret";
-  char buff1[BLOCK_SIZE] = {0}, buff2[BLOCK_SIZE] = {0};
+  char buff1[1024] = {0}, buff2[1024] = {0};
 
-  const char key1[GENERATED_PASS_SIZE] = "hello";
-  char key2[GENERATED_PASS_SIZE] = {0};
+  const char key1[] = "h";
+  char *key2;
 
   struct MagicCryptKey k1, k2;
   struct MagicCryptCtx ctx;
 
-  MagicCrypt_PrepareKey(&k1, key1, sizeof(key1));
+  if (!MagicCrypt_PrepareKey(&k1, key1, sizeof(key1))) {
+    printf("problem with password");
+    return -1;
+  }
   MagicCrypt_Setup(&ctx);
   MagicCrypt_SetPassword(&ctx, &k1, &k2);
 
-  MagicCrypt_PasswordHexdigist(&k2, key2, sizeof(key2));
   printf("Pass1: %s\n", key1);
   printf("Generated Pass2: %s\n", key2);
 

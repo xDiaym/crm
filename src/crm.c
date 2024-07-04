@@ -6,66 +6,16 @@
 #include <stdlib.h>
 
 #include <gmp.h>
-#include "./base64.h"
+#include <openssl/rand.h>
+#include <openssl/sha.h>
 
-#ifndef WARN
-#define WARN(...) fprintf(stderr, "[WARN]: " __VA_ARGS__)
-#else
-#define WARN(...) /* nothing */
-#endif
+#define DO_NOT_OPTIMIZE(x) asm volatile("" : : "g"(x) : "memory")
 
-#if !(defined(_NDEBUG) || defined(NDEBUG))
-#define LOG(...) gmp_fprintf(stderr, "[LOG]: " __VA_ARGS__)
-#else
-#define LOG(...) /* nothing */
-#endif
+#define ORDER (1)
+#define ENDIANESS (1)
 
-_Static_assert(GENERATED_PASS_SIZE > BLOCK_SIZE,
-               "Password size can't be less than block size");
-
-static const char IV[GENERATED_PASS_SIZE] = {0x01, 0x02, 0x01, 0x00, 0x03, 0x01, 0x01, 0x02};
-
-static void stompz(mpz_t x, const char* s) {
-  char buff[BASE64_ENCODE_OUT_SIZE(GENERATED_PASS_SIZE)] = {0};
-  base64_encode(s, GENERATED_PASS_SIZE, buff);
-
-  for (int i = 0; i < sizeof(buff); ++i) {
-    mpz_mul_2exp(x, x, 8);
-    mpz_add_ui(x, x, buff[i]);
-  }
-}
-
-static void mpztos(const mpz_t x, char* s) {
-  mpz_t y, rem;
-  mpz_inits(y, rem, 0);
-  mpz_set(y, x);
-
-  char buff[BASE64_ENCODE_OUT_SIZE(GENERATED_PASS_SIZE)] = {0};
-  for (int i = 0; i < sizeof(buff); ++i) {
-    mpz_divmod_ui(y, rem, y, 256);
-
-    buff[sizeof(buff) - i - 1] = mpz_get_ui(rem);
-  }
-
-  base64_decode(buff, sizeof(buff)-1, s);
-  mpz_clears(y, rem, 0);
-}
-
-static void Mu(char* out, const char* const password, size_t size) {
-  memcpy(out, IV, sizeof(IV));
-  for (int i = 0; i < size; ++i) {
-    out[i % GENERATED_PASS_SIZE] ^= password[i];
-  }
-}
-
-static void MuInv(char* out, const char* const block) {
-  memcpy(out, IV, sizeof(IV));
-  for (int i = 0; i < GENERATED_PASS_SIZE; ++i) {
-    out[i] ^= block[i];
-  }
-}
-
-static int min(int a, int b) { return a > b ? b : a; }
+#define MIN_PASS_LENGTH (8)
+#define MIN_PASS_LENGTH_BIT (MIN_PASS_LENGTH_BIT * sizeof(char))
 
 // ==============================================================
 
@@ -74,18 +24,41 @@ int MagicCrypt_PrepareKey(struct MagicCryptKey* key, const char* const password,
   if (size < MIN_PASS_LENGTH) {
     return EINVAL;
   }
-  char buff[GENERATED_PASS_SIZE];
-  Mu(buff, password, size);
 
-  mpz_init(key->key);
-  stompz(key->key, buff);
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  SHA256_CTX sha256;
+  SHA256_Init(&sha256);
+  SHA256_Update(&sha256, password, size);
+  SHA256_Final(hash, &sha256);
+
+  mpz_t msb;
+  mpz_inits(msb, key->key, 0);
+  mpz_import(key->key, sizeof(hash), ORDER, sizeof(hash[0]), ENDIANESS, 0, hash);
+
+  mpz_set(msb, 1);
+  mpz_
+  mpz_add();
+
+  key->password = malloc(sizeof(char) * size);
+  if (key->password == NULL) {
+    return ENOMEM;
+  }
+
+  memcpy(key->password, password, size);
+  key->password_size = size;
+
+  mpz_clear(msb);
 
   return 1;
 }
 
 void MagicCrypt_TeardownKey(struct MagicCryptKey* key) {
+  // FIXME: key->key должен быть занулен
   mpz_clear(key->key);
-  // FIXME(all): memset(0)
+
+  memset(key->password, 0, key->password_size);
+  DO_NOT_OPTIMIZE(key->password[0]);
+  free(key->password);
 }
 
 int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
@@ -97,7 +70,7 @@ int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
   mpz_init(secondary_key->key);
   int is_coprime = 0, is_large_enough = 0;
   do {
-    mpz_random(secondary_key->key, GENERATED_PASS_SIZE_BITS);
+    mpz_random(secondary_key->key, INTERNAL_PASS_SIZE_BITS);
 
     mpz_gcd(rem, secondary_key->key, primary_key->key);
     is_coprime = mpz_cmp_si(rem, 1) == 0;
@@ -105,16 +78,6 @@ int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
   } while (!(is_coprime && is_large_enough));
 
   mpz_clear(rem);
-
-  return 1;
-}
-
-int MagicCrypt_PasswordHexdigist(const struct MagicCryptKey* key, char* buffer,
-                                 size_t size) {
-  char buff[GENERATED_PASS_SIZE];
-  mpztos(key->key, buff);
-
-  MuInv(buffer, buff);
 
   return 1;
 }
@@ -130,8 +93,37 @@ void MagicCrypt_Teardown(struct MagicCryptCtx* ctx) {
 int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
                        size_t size1, const char* const plaintext2, size_t size2,
                        char* output, size_t output_size) {
-  mpz_t m1, m2, c, tmp1, tmp2, P;
+  mpz_t m1, m2, c, p1_inv, p2_inv, tmp1, tmp2, P;
   mpz_inits(m1, m2, c, tmp1, tmp2, P, 0);
+
+  mpz_mul(P, ctx->p1, ctx->p2);
+
+  // Setup messages
+  mpz_import(m1, size1, 1, 1, 0, 0, m1);
+  mpz_import(m2, size2, 1, 1, 0, 0, m2);
+
+  // Find inverted element
+  mpz_invert(p1_inv, ctx->p1, ctx->p2);
+  mpz_invert(p2_inv, ctx->p2, ctx->p1);
+
+  // p1 part
+  mpz_mul(tmp1, m1, ctx->p2);
+  mpz_mod(tmp1, tmp1, P);
+  mpz_mul(tmp1, tmp1, p2_inv);
+  mpz_mod(tmp1, tmp1, P);
+
+  // p2 part
+  mpz_mul(tmp2, m2, ctx->p1);
+  mpz_mod(tmp1, tmp1, P);
+  mpz_mul(tmp2, tmp2, p1_inv);
+  mpz_mod(tmp1, tmp1, P);
+
+  // Sum
+  mpz_add(c, tmp1, tmp2);
+  mpz_mod(tmp1, tmp1, P);
+
+  size_t proceed;
+  mpz_export(output, &proceed, 1, 1, 0, 0, c);
 
   mpz_clears(m1, m2, c, tmp1, tmp2, P, 0);
   return 1;
@@ -139,5 +131,16 @@ int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
 
 int MagicCrypt_Decrypt(const struct MagicCryptKey* key, const char* input,
                        size_t input_size, char* output, size_t output_size) {
+  mpz_t c, m1;
+  mpz_inits(c, m1, 0);
+
+  mpz_import(c, input_size, 1, 1, 0, 0, input);
+
+  mpz_mod(m1, c, key->key);
+
+  size_t proceed;
+  mpz_export(output, &proceed, 1, 1, 0, 0, m1);
+
+  mpz_clears(c, m1, 0);
   return 1;
 }

@@ -5,15 +5,9 @@
 #include <gmp.h>
 #include <stddef.h>
 
-#define MIN_PASS_LENGTH (8)
-
-#define GENERATED_PASS_SIZE_BITS (384)
-#define GENERATED_PASS_SIZE (GENERATED_PASS_SIZE_BITS / (8 * sizeof(char)))
-
-#define BLOCK_SIZE_BITS (256)
-#define BLOCK_SIZE (BLOCK_SIZE_BITS / (8 * sizeof(char)))
-
 struct MagicCryptKey {
+  char* password;
+  size_t password_size;
   mpz_t key;
 };
 
@@ -28,9 +22,6 @@ void MagicCrypt_TeardownKey(struct MagicCryptKey* key);
 int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
                            const struct MagicCryptKey* primary_key,
                            struct MagicCryptKey* secondary_key);
-
-int MagicCrypt_PasswordHexdigist(const struct MagicCryptKey* key, char* buffer,
-                                 size_t size);
 
 void MagicCrypt_Setup(struct MagicCryptCtx* ctx);
 void MagicCrypt_Teardown(struct MagicCryptCtx* ctx);
