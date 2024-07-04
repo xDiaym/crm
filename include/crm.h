@@ -30,7 +30,7 @@ int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
                        size_t size1, const char* const plaintext2, size_t size2,
                        char* output, size_t output_size);
 
-int MagicCrypt_Decrypt(const struct MagicCryptKey* key, const char* input,
-                       size_t input_size, char* output, size_t output_size);
+int MagicCrypt_Decrypt(const struct MagicCryptKey* key, const char* const input,
+                       const size_t input_size, char* output, const size_t output_size);
 
 #endif  // CRM_H

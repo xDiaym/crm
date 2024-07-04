@@ -8,9 +8,11 @@
 #endif
 
 #if !(defined(_NDEBUG) || defined(NDEBUG))
-#define DEBUG_LOG(...) gmp_fprintf(stderr, "[DEBUG]: " __VA_ARGS__)
+#define LOG_DEBUG(...) gmp_fprintf(stderr, "[DEBUG]: " __VA_ARGS__)
+#define Zd(x) LOG_DEBUG(#x ": %Zd\n", x)
 #else
-#define DEBUG_LOG(...) /* nothing */
+#define LOG_DEBUG(...) /* nothing */
+#define Zd(x) /* nothing */
 #endif
 
 #endif LOGGING_H
