@@ -7,10 +7,10 @@
 int main() {
   const char m1[] = "hello, world!";
   const char m2[] = "secret";
-  char buff1[256] = {0}, buff2[256] = {0};
+  char buff1[BLOCK_SIZE] = {0}, buff2[BLOCK_SIZE] = {0};
 
-  const char key1[] = "hello";
-  char key2[128] = {0};
+  const char key1[GENERATED_PASS_SIZE] = "hello";
+  char key2[GENERATED_PASS_SIZE] = {0};
 
   struct MagicCryptKey k1, k2;
   struct MagicCryptCtx ctx;

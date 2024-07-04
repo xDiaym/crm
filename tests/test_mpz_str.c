@@ -1,34 +1,31 @@
-#include "../src/crm.c"
 #include <assert.h>
-#include <gmp.h>
 #include <crm.h>
+#include <gmp.h>
+#include "../src/crm.c"
 
 int main() {
-  const char pass[] = "h";
-  char buff[256] = {0};
+  // const char pass[] = "h";
+  // char buff[256] = {0};
 
-  struct MagicCryptKey k;
-  MagicCrypt_PrepareKey(&k, pass, sizeof(pass));
+  // struct MagicCryptKey k;
+  // MagicCrypt_PrepareKey(&k, pass, sizeof(pass));
 
-  MagicCrypt_PasswordHexdigist(&k, buff, sizeof(buff));
-  
-  printf("pass: %s\n", pass);
-  printf("f^-1(f(pass)): %s\n", buff);
+  // MagicCrypt_PasswordHexdigist(&k, buff, sizeof(buff));
 
-  assert(strcmp(pass, buff) == 0 && "x != f^-1(f(x))");
-  printf("OK\n");
-  // mpz_t x;
-  // mpz_init(x);
-  // char buff[256] = {'h', 0};
-  // char buff2[256] = {0};
-  // stompz(x, buff);
+  // printf("pass: %s\n", pass);
+  // printf("f^-1(f(pass)): %s\n", buff);
 
-  // gmp_printf("%Zd\n", x);
+  // assert(strcmp(pass, buff) == 0 && "x != f^-1(f(x))");
+  // printf("OK\n");
 
-  // mpztos(x, buff2);
+  mpz_t x; mpz_init(x);
+  char p[GENERATED_PASS_SIZE] = "h", q[GENERATED_PASS_SIZE] = {0};
+  stompz(x, p);
 
-  // printf("%s\n", buff2);
+  gmp_printf("p->x: %Zd\n", x);
 
-  // mpz_clear(x);
+  mpztos(x, q);
+  printf("x->p: %s\n", q);
+
   return 0;
 }

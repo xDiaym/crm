@@ -1,9 +1,9 @@
 #include "crm.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <memory.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include <gmp.h>
 #include "./base64.h"
@@ -20,21 +20,14 @@
 #define LOG(...) /* nothing */
 #endif
 
-#define GENERATED_PASS_SIZE (384)
-#define BLOCK_SIZE_BITS (256)
-#define BLOCK_SIZE (BLOCK_SIZE_BITS / (8 * sizeof(char)))
+_Static_assert(GENERATED_PASS_SIZE > BLOCK_SIZE,
+               "Password size can't be less than block size");
 
-_Static_assert(GENERATED_PASS_SIZE > BLOCK_SIZE, "Password size can't be less than block size");
-
-// static const char IV[BLOCK_SIZE] = {0x59, 0x61, 0x6e, 0x64, 0x65, 0x78, 0x26,
-//                               0x49, 0x54, 0x4d, 0x4f, 0x5f, 0x74, 0x48,
-//                               0x78, 0x5f, 0x34, 0x5f, 0x53, 0x74, 0x75,
-//                               0x64, 0x43, 0x61, 0x6d, 0x70};
-static const char IV[BLOCK_SIZE] = {0}; 
+static const char IV[GENERATED_PASS_SIZE] = {0x01, 0x02, 0x01, 0x00, 0x03, 0x01, 0x01, 0x02};
 
 static void stompz(mpz_t x, const char* s) {
-  char buff[BASE64_ENCODE_OUT_SIZE(BLOCK_SIZE)] = {0};
-  base64_encode(s, BLOCK_SIZE, buff);
+  char buff[BASE64_ENCODE_OUT_SIZE(GENERATED_PASS_SIZE)] = {0};
+  base64_encode(s, GENERATED_PASS_SIZE, buff);
 
   for (int i = 0; i < sizeof(buff); ++i) {
     mpz_mul_2exp(x, x, 8);
@@ -42,12 +35,12 @@ static void stompz(mpz_t x, const char* s) {
   }
 }
 
-static void mpztos(mpz_t x, char* s) {
+static void mpztos(const mpz_t x, char* s) {
   mpz_t y, rem;
   mpz_inits(y, rem, 0);
   mpz_set(y, x);
 
-  char buff[BASE64_ENCODE_OUT_SIZE(BLOCK_SIZE)];
+  char buff[BASE64_ENCODE_OUT_SIZE(GENERATED_PASS_SIZE)] = {0};
   for (int i = 0; i < sizeof(buff); ++i) {
     mpz_divmod_ui(y, rem, y, 256);
 
@@ -61,13 +54,13 @@ static void mpztos(mpz_t x, char* s) {
 static void Mu(char* out, const char* const password, size_t size) {
   memcpy(out, IV, sizeof(IV));
   for (int i = 0; i < size; ++i) {
-    out[i % BLOCK_SIZE] ^= password[i];
+    out[i % GENERATED_PASS_SIZE] ^= password[i];
   }
 }
 
 static void MuInv(char* out, const char* const block) {
   memcpy(out, IV, sizeof(IV));
-  for (int i = 0; i < BLOCK_SIZE; ++i) {
+  for (int i = 0; i < GENERATED_PASS_SIZE; ++i) {
     out[i] ^= block[i];
   }
 }
@@ -78,7 +71,10 @@ static int min(int a, int b) { return a > b ? b : a; }
 
 int MagicCrypt_PrepareKey(struct MagicCryptKey* key, const char* const password,
                           size_t size) {
-  char buff[BLOCK_SIZE];
+  if (size < MIN_PASS_LENGTH) {
+    return EINVAL;
+  }
+  char buff[GENERATED_PASS_SIZE];
   Mu(buff, password, size);
 
   mpz_init(key->key);
@@ -101,11 +97,11 @@ int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
   mpz_init(secondary_key->key);
   int is_coprime = 0, is_large_enough = 0;
   do {
-    mpz_random(secondary_key->key, GENERATED_PASS_SIZE);
+    mpz_random(secondary_key->key, GENERATED_PASS_SIZE_BITS);
 
     mpz_gcd(rem, secondary_key->key, primary_key->key);
     is_coprime = mpz_cmp_si(rem, 1) == 0;
-    is_large_enough = mpz_sizeinbase(secondary_key->key, 2) > BLOCK_SIZE;
+    is_large_enough = mpz_sizeinbase(secondary_key->key, 2) > BLOCK_SIZE_BITS;
   } while (!(is_coprime && is_large_enough));
 
   mpz_clear(rem);
@@ -115,8 +111,7 @@ int MagicCrypt_SetPassword(struct MagicCryptCtx* ctx,
 
 int MagicCrypt_PasswordHexdigist(const struct MagicCryptKey* key, char* buffer,
                                  size_t size) {
-  const int len = GENERATED_PASS_SIZE / (8 * sizeof(char));
-  char buff[len];
+  char buff[GENERATED_PASS_SIZE];
   mpztos(key->key, buff);
 
   MuInv(buffer, buff);
