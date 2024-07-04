@@ -1,5 +1,7 @@
-#include <gmp.h>
+// clang-format off
 #include <stdio.h>
+#include <gmp.h>
+// clang-format on
 #include <stdlib.h>
 #include <string.h>
 #include "./crm.h"
@@ -25,7 +27,7 @@ int main() {
   printf("Generated Pass2: %s\n", k2.password);
 
   int size = MagicCrypt_Encrypt(&ctx, m1, sizeof(m1), m2, sizeof(m2), buff1,
-                     sizeof(buff1));
+                                sizeof(buff1));
   printf("Ecrypted: %s\n", buff1);
 
   MagicCrypt_Decrypt(&k1, buff1, size, buff2, sizeof(buff2));

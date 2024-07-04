@@ -12,7 +12,7 @@
 #define Zd(x) LOG_DEBUG(#x ": %Zd\n", x)
 #else
 #define LOG_DEBUG(...) /* nothing */
-#define Zd(x) /* nothing */
+#define Zd(x)          /* nothing */
 #endif
 
 #endif LOGGING_H
