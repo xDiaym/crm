@@ -9,6 +9,7 @@
 
 #define BLOCK_SIZE_BITS (256)
 #define BLOCK_SIZE (BLOCK_SIZE_BITS / (8 * sizeof(char)))
+#define ENCRYPTED_BLOCK_SIZE 65
 
 struct MagicCryptKey {
   char* password;
@@ -22,6 +23,9 @@ struct MagicCryptCtx {
   int mode;
   mpz_t iv;
   mpz_t p1, p2;
+  // ----
+  mpz_t p1_inv, p2_inv;
+  mpz_t P;
 };
 
 int MagicCrypt_PrepareKey(struct MagicCryptKey* key, const char* const password,
@@ -39,7 +43,7 @@ int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
                        size_t size1, const char* const plaintext2, size_t size2,
                        char* output, size_t output_size);
 
-int MagicCrypt_Decrypt(struct MagicCryptKey* key, const char* const input,
+int MagicCrypt_Decrypt(const struct MagicCryptKey* key, const char* const input,
                        const size_t input_size, char* output,
                        const size_t output_size);
 

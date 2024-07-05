@@ -15,4 +15,4 @@
 #define Zd(x)          /* nothing */
 #endif
 
-#endif LOGGING_H
+#endif

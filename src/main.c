@@ -7,8 +7,8 @@
 #include "./crm.h"
 
 int main() {
-  const char m1[] = "hello, world!";
-  const char m2[] = "secret";
+  const char m1[BLOCK_SIZE] = "hello, world!";
+  const char m2[BLOCK_SIZE] = "secret";
   char buff1[1024] = {0}, buff2[1024] = {0};
 
   const char key1[] = "itmo&yandex";
