@@ -199,10 +199,11 @@ int MagicCrypt_EncryptBlock(struct MagicCryptCtx* ctx, const char* const block1,
   mpz_mod(c, c, ctx->P);
 
   size_t proceed;
+  memset(out, 0, 2 * BLOCK_SIZE + 1);
   mpz_export(out, &proceed, 1, 1, 0, 0, c);
 
   mpz_clears(m1, m2, tmp1, tmp2, c, 0);
-  return proceed;
+  return 2 * BLOCK_SIZE + 1;
 }
 
 int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
@@ -217,35 +218,37 @@ int MagicCrypt_Encrypt(struct MagicCryptCtx* ctx, const char* const plaintext1,
   while (bytes_readen < max(size1, size2)) {
     memset(block1, 0, sizeof(block1));
     const int n1 = min(size1 - bytes_readen, BLOCK_SIZE);
-    if (n1 > 0) { 
+    if (n1 > 0) {
       memcpy(block1, plaintext1 + bytes_readen, n1);
     }
 
     memset(block2, 0, sizeof(block2));
     const int n2 = min(size2 - bytes_readen, BLOCK_SIZE);
-    if (n2 > 0) { 
+    if (n2 > 0) {
       memcpy(block2, plaintext2 + bytes_readen, n2);
     }
 
     bytes_readen += BLOCK_SIZE;
 
-   bytes_written += MagicCrypt_EncryptBlock(ctx, block1, block2, output + bytes_written);
+    bytes_written +=
+        MagicCrypt_EncryptBlock(ctx, block1, block2, output + bytes_written);
   }
   return bytes_written;
 }
 
 int MagicCrypt_DecryptBlock(const struct MagicCryptKey* key,
-  char block[2*BLOCK_SIZE+1], char* out) {
+                            char block[2 * BLOCK_SIZE + 1], char* out) {
   mpz_t c, m1;
   mpz_inits(c, m1, 0);
 
-  size_t block_size = block[2*BLOCK_SIZE] == 0 ? 2*BLOCK_SIZE : 2*BLOCK_SIZE+1;
+  size_t block_size =
+      block[2 * BLOCK_SIZE] == 0 ? 2 * BLOCK_SIZE : 2 * BLOCK_SIZE + 1;
   mpz_import(c, block_size, ORDER, sizeof(block[0]), ENDIANESS, 0, block);
   mpz_mod(m1, c, key->key);
 
   size_t proceed;
   mpz_export(out, &proceed, 1, 1, 0, 0, m1);
-  
+
   mpz_clears(c, m1, 0);
   return proceed;
 }
@@ -254,15 +257,16 @@ int MagicCrypt_Decrypt(const struct MagicCryptKey* key, const char* const input,
                        const size_t input_size, char* output,
                        const size_t output_size) {
   size_t bytes_written = 0, bytes_readen = 0;
-  char block[2*BLOCK_SIZE+1];
+  char block[2 * BLOCK_SIZE + 1];
 
   while (bytes_readen < input_size) {
-    const int n = min(input_size - bytes_readen, 2*BLOCK_SIZE+1);
+    const int n = min(input_size - bytes_readen, 2 * BLOCK_SIZE + 1);
     memset(block, 0, sizeof(block));
     memcpy(block, input + bytes_readen, n);
     bytes_readen += n;
 
-    bytes_written += MagicCrypt_DecryptBlock(key, block, output + bytes_written);
+    bytes_written +=
+        MagicCrypt_DecryptBlock(key, block, output + bytes_written);
   }
 
   return bytes_readen;

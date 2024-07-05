@@ -17,13 +17,9 @@ struct MagicCryptKey {
   mpz_t key;
 };
 
-enum MagicCryptMode { ECB = 0, CBC };
-
 struct MagicCryptCtx {
-  int mode;
   mpz_t iv;
   mpz_t p1, p2;
-  // ----
   mpz_t p1_inv, p2_inv;
   mpz_t P;
 };
